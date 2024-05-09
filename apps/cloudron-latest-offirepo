@@ -27,4 +27,4 @@ descriptionAppend "SSL will be configured after the first step."
 
 tagScript success
 
-exit 0
+reboot
