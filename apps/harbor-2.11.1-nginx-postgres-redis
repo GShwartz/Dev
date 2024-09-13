@@ -211,14 +211,14 @@ main() {
 	lines+=("Getting Ready...")
 
 	for line in "${lines[@]}"; do
-		"$update_status" "$HTML_PATH" -ap "$line"
+		"$update_status" "$HTML_PATH" -ap "${lines[-1]}"
 	done
 
 	pre_install
 	
 	# Add a status update for Docker installation
 	lines+=("Installing Docker-CE & Docker-Compose...")
-	"$update_status" "$HTML_PATH" -ap "$lines[-1]"
+	"$update_status" "$HTML_PATH" -ap "${lines[-1]}"
 
 	echo "Installing Docker-CE & Docker-Compose..."
 	install_docker
@@ -228,7 +228,7 @@ main() {
 	
 	# Add a status update for certificate generation
 	lines+=("Generating certificates...")
-	"$update_status" "$HTML_PATH" -ap "$lines[-1]"
+	"$update_status" "$HTML_PATH" -ap "${lines[-1]}"
 	
 	echo "Generating certificates..."
 	generate_certs
@@ -239,7 +239,7 @@ main() {
 	
 	# Add a status update for Harbor installation
 	lines+=("Installing Harbor 2.11.1...")
-	"$update_status" "$HTML_PATH" -ap "$lines[-1]"
+	"$update_status" "$HTML_PATH" -ap "${lines[-1]}"
 	
 	echo "Installing Harbor 2.11.1..."
 	install_harbor
