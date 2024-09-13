@@ -205,10 +205,20 @@ main() {
 	lines=()
 
 	mark_previous_done() {
-	    for (( i=0; i<${#lines[@]}-1; i++ )); do
-	        if [[ "${lines[$i]}" != *"[DONE]"* ]]; then
+	    for (( i=0; i<${#lines[@]}; i++ )); do
+	        # Check if the line is not already marked as [DONE]
+	        if [[ ! " ${done_lines[@]} " =~ " ${lines[$i]} " ]]; then
 	            lines[$i]="${lines[$i]} [DONE]"
+	            done_lines+=("${lines[$i]}")  # Add to done_lines to prevent duplicate updates
 	        fi
+	    done
+	}
+
+	# Function to display all status updates
+	display_all_lines() {
+		"$update_status" "$HTML_PATH" -cp
+	    for line in "${lines[@]}"; do
+	        "$update_status" "$HTML_PATH" -ap "$line"
 	    done
 	}
 	
@@ -218,14 +228,14 @@ main() {
 	# Add a status update
 	lines+=("Getting Ready...")
 	"$update_status" "$HTML_PATH" -cp
-	"$update_status" "$HTML_PATH" -ap "${lines[-1]}"
+	display_all_lines
 	
 	pre_install
 	
 	# Add a status update for Docker installation
 	mark_previous_done
 	lines+=("Installing Docker-CE & Docker-Compose...")
-	"$update_status" "$HTML_PATH" -ap "${lines[-1]}"
+	display_all_lines
 
 	echo "Installing Docker-CE & Docker-Compose..."
 	install_docker
@@ -236,7 +246,7 @@ main() {
 	# Add a status update for certificate generation
 	mark_previous_done
 	lines+=("Generating certificates...")
-	"$update_status" "$HTML_PATH" -ap "${lines[-1]}"
+	display_all_lines
 	
 	echo "Generating certificates..."
 	generate_certs
@@ -248,7 +258,7 @@ main() {
 	# Add a status update for Harbor installation
 	mark_previous_done
 	lines+=("Installing Harbor 2.11.1...")
-	"$update_status" "$HTML_PATH" -ap "${lines[-1]}"
+	display_all_lines
 	
 	echo "Installing Harbor 2.11.1..."
 	install_harbor
