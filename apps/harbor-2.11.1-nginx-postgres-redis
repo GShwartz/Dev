@@ -204,19 +204,26 @@ install_harbor() {
 main() {
 	lines=()
 
+	mark_previous_done() {
+	    for (( i=0; i<${#lines[@]}-1; i++ )); do
+	        if [[ "${lines[$i]}" != *"[DONE]"* ]]; then
+	            lines[$i]="${lines[$i]} [DONE]"
+	        fi
+	    done
+	}
+	
 	update_status="$rootDir/include/updateInstallStatus.sh"
 	HTML_PATH="/var/www/html/index.html"
 
 	# Add a status update
 	lines+=("Getting Ready...")
-
-	for line in "${lines[@]}"; do
-		"$update_status" "$HTML_PATH" -ap "${lines[-1]}"
-	done
-
+	"$update_status" "$HTML_PATH" -cp
+	"$update_status" "$HTML_PATH" -ap "${lines[-1]}"
+	
 	pre_install
 	
 	# Add a status update for Docker installation
+	mark_previous_done
 	lines+=("Installing Docker-CE & Docker-Compose...")
 	"$update_status" "$HTML_PATH" -ap "${lines[-1]}"
 
@@ -227,6 +234,7 @@ main() {
 	cd /opt
 	
 	# Add a status update for certificate generation
+	mark_previous_done
 	lines+=("Generating certificates...")
 	"$update_status" "$HTML_PATH" -ap "${lines[-1]}"
 	
@@ -238,6 +246,7 @@ main() {
 	systemctl restart docker
 	
 	# Add a status update for Harbor installation
+	mark_previous_done
 	lines+=("Installing Harbor 2.11.1...")
 	"$update_status" "$HTML_PATH" -ap "${lines[-1]}"
 	
