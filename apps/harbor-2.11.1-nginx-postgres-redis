@@ -133,12 +133,17 @@ configure_harbor() {
 }
 
 
-prepare_and_install_harbor() {
-	echo "Running harbor prep phase..."
-	bash /opt/harbor/prepare
-	
-	echo "Running harbor install phase..."
-	bash /opt/harbor/install.sh
+listen_for_harbor_nginx() {
+    echo "Listening for Harbor's nginx container start event..."
+
+    # Start listening for Docker events
+    docker events --filter 'event=start' --filter 'image=goharbor/nginx' | while read event
+    do
+        echo "Detected Harbor's nginx container starting..."
+        echo "Stopping Apache2 service to free up ports 80/443..."
+        systemctl stop apache2
+        break
+    done
 }
 
 
@@ -174,30 +179,37 @@ download_and_extract() {
 }
 
 
-offline_installer() {
-	download_and_extract "$OFFLINE_APP_URL"
-}
-
-
-online_installer() {
-	download_and_extract "$ONLINE_APP_URL"
-}
-
-
 install_harbor() {
 	if [ "$INSTALL_TYPE" = "offline" ]; then
-		offline_installer
+		download_and_extract "$OFFLINE_APP_URL"
 
 	elif [ "$INSTALL_TYPE" = "online" ]; then
-		online_installer
+		download_and_extract "$ONLINE_APP_URL"
 		
 	else
 		echo "Invalid INSTALL_TYPE. Please specify 'offline' or 'online'. Exiting."
 		exit 1
 	fi
-	
-	configure_harbor
-	prepare_and_install_harbor
+}
+
+
+prepare_harbor() {
+	echo "Running harbor prep phase..."
+	bash /opt/harbor/prepare
+}
+
+
+install_harbor_final() {
+	echo "Running harbor install phase..."
+    bash /opt/harbor/install.sh | while IFS= read -r line; do
+        echo "$line"  # Print the output as it's happening
+
+        if [[ "$line" == *"Clean up the input dir"* ]]; then
+            echo "Detected 'Clean up the input dir' - stopping Apache2..."
+            systemctl stop apache2
+            break
+        fi
+    done
 }
 
 
@@ -214,7 +226,6 @@ main() {
 	    done
 	}
 
-	# Function to display all status updates
 	display_all_lines() {
 		"$update_status" "$HTML_PATH" -cp
 	    for line in "${lines[@]}"; do
@@ -225,14 +236,12 @@ main() {
 	update_status="$rootDir/include/updateInstallStatus.sh"
 	HTML_PATH="/var/www/html/index.html"
 
-	# Add a status update
 	lines+=("Getting Ready...")
 	"$update_status" "$HTML_PATH" -cp
 	display_all_lines
 	
 	pre_install
 	
-	# Add a status update for Docker installation
 	mark_previous_done
 	lines+=("Installing Docker-CE & Docker-Compose...")
 	display_all_lines
@@ -243,7 +252,6 @@ main() {
 	echo "Switching to /opt..."
 	cd /opt
 	
-	# Add a status update for certificate generation
 	mark_previous_done
 	lines+=("Generating certificates...")
 	display_all_lines
@@ -251,23 +259,41 @@ main() {
 	echo "Generating certificates..."
 	generate_certs
 	
-	# Restart Docker
 	echo "Restarting docker..."
 	systemctl restart docker
 	
-	# Add a status update for Harbor installation
 	mark_previous_done
-	lines+=("Installing Harbor 2.11.1...")
+	lines+=("Downloading Harbor 2.11.1...")
 	display_all_lines
 	
-	echo "Installing Harbor 2.11.1..."
+	echo "Downloading Harbor 2.11.1..."
 	install_harbor
+	
+	mark_previous_done
+	lines+=("Configuring Harbor 2.11.1...")
+	display_all_lines
+	
+	echo "Configuring Harbor 2.11.1..."
+	configure_harbor
+	
+	mark_previous_done
+	lines+=("Preparing Harbor 2.11.1...")
+	display_all_lines
+	
+	echo "Preparing Harbor 2.11.1..."
+	prepare_harbor
+	
+	mark_previous_done
+	lines+=("Finalizing Harbor 2.11.1...")
+	display_all_lines
+	
+	echo "Finalizing Harbor 2.11.1..."
+	install_harbor_final
 	
 	echo "Install script completed successfully!"
 	
 	exit 0
 }
-
 
 
 main
