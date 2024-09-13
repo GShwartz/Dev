@@ -209,12 +209,14 @@ main() {
 
 	# Add a status update
 	lines+=("Getting Ready...")
-	"$update_status" "$HTML_PATH" -rp "${lines[*]}"
+	"$update_status" "$HTML_PATH" -rp "${lines[@]}"
 	pre_install
 	
 	# Add a status update for Docker installation
 	lines+=("Installing Docker-CE & Docker-Compose...")
-	"$update_status" "$HTML_PATH" -rp "${lines[*]}"
+	"$update_status" "$HTML_PATH" -cp
+	"$update_status" "$HTML_PATH" -rp "$lines[@]"
+	echo "Installing Docker-CE & Docker-Compose..."
 	install_docker
 	
 	echo "Switching to /opt..."
@@ -222,8 +224,9 @@ main() {
 	
 	# Add a status update for certificate generation
 	lines+=("Generating certificates...")
-	"$update_status" "$HTML_PATH" -rp "${lines[*]}"
-	echo "Generating certificates..."	
+	"$update_status" "$HTML_PATH" -cp
+	"$update_status" "$HTML_PATH" -rp "$lines[@]"
+	echo "Generating certificates..."
 	generate_certs
 	
 	# Restart Docker
@@ -232,8 +235,9 @@ main() {
 	
 	# Add a status update for Harbor installation
 	lines+=("Installing Harbor 2.11.1...")
-	"$update_status" "$HTML_PATH" -rp "${lines[*]}"
-	echo "Installing Harbor..."
+	"$update_status" "$HTML_PATH" -cp
+	"$update_status" "$HTML_PATH" -rp "$lines[@]"
+	echo "Installing Harbor 2.11.1..."
 	install_harbor
 	
 	echo "Install script completed successfully!"
