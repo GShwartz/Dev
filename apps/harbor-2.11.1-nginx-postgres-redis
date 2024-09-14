@@ -1,5 +1,6 @@
 #!/bin/bash
 
+set -euo pipefail
 
 if [ -f "include/startup.sh" ]; then
     . include/startup.sh
@@ -11,8 +12,6 @@ elif [ -f "../include/startup.sh" ]; then
 	
 fi
 
-set -e
-
 DOMAIN="home.lab"
 DOMAIN_CERT_PATH="/opt/${DOMAIN}.crt"
 DOMAIN_KEY_PATH="/opt/${DOMAIN}.key"
@@ -22,23 +21,28 @@ ONLINE_APP_URL="https://github.com/goharbor/harbor/releases/download/v2.11.1/har
 ADMIN_PASSWORD="Pass12344321!!"
 INSTALL_TYPE="online"
 
+declare -a REMOVE_PACKAGES=("docker.io" "docker-doc" "docker-compose" "docker-compose-v2" "podman-docker" "containerd" "runc")
+declare -a INSTALL_PACKAGES=("ca-certificates" "curl" "ufw")
 
 pre_install() {
-	echo "Removing possible conflicting packages..."
-	for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do apt remove $pkg -y &> /dev/null; done
+	echo "Removing possible conflicting packages..." | log
+	for pkg in "${REMOVE_PACKAGES[@]}"; do
+        apt remove "$pkg" -y &> /dev/null || echo "Failed to remove $pkg" | log
+    done
 	
+	echo "Updating packages..." | log
 	apt update &> /dev/null
 	
-	echo "Installing ca-certificates curl ufw..."
-	apt install -y ca-certificates curl ufw &> /dev/null
+	echo "Installing ca-certificates curl ufw..." | log
+	apt install -y "${INSTALL_PACKAGES[@]}" &> /dev/null
 	
-	echo "Opening ports for Harbor..."
+	echo "Opening ports for Harbor..." | log
 	ufw allow 80/tcp &> /dev/null
 	ufw allow 443/tcp &> /dev/null
 	ufw allow 4443/tcp &> /dev/null
 	ufw allow ssh &> /dev/null
 
-	echo "Enabling UFW..."
+	echo "Enabling UFW..." | log
 	echo "y" | ufw enable &> /dev/null
 	ufw status
 }
@@ -133,20 +137,6 @@ configure_harbor() {
 }
 
 
-listen_for_harbor_nginx() {
-    echo "Listening for Harbor's nginx container start event..."
-
-    # Start listening for Docker events
-    docker events --filter 'event=start' --filter 'image=goharbor/nginx' | while read event
-    do
-        echo "Detected Harbor's nginx container starting..."
-        echo "Stopping Apache2 service to free up ports 80/443..."
-        systemctl stop apache2
-        break
-    done
-}
-
-
 download_and_extract() {
     local url=$1
     local filename=$(basename "$url")
@@ -199,15 +189,14 @@ prepare_harbor() {
 }
 
 
-install_harbor_final() {
-	echo "Running harbor install phase..."
+finalize_harbor_installation() {
+	echo "Running harbor install phase..." | log
     bash /opt/harbor/install.sh | while IFS= read -r line; do
-        echo "$line"  # Print the output as it's happening
+        echo "$line"
 
         if [[ "$line" == *"Clean up the input dir"* ]]; then
-            echo "Detected 'Clean up the input dir' - stopping Apache2..."
+            echo "Stopping Apache2..." | log
             systemctl stop apache2
-            break
         fi
     done
 }
@@ -215,7 +204,8 @@ install_harbor_final() {
 
 main() {
 	lines=()
-
+	done_lines=()
+	
 	mark_previous_done() {
 	    for (( i=0; i<${#lines[@]}; i++ )); do
 	        # Check if the line is not already marked as [DONE]
@@ -246,7 +236,7 @@ main() {
 	lines+=("Installing Docker-CE & Docker-Compose...")
 	display_all_lines
 
-	echo "Installing Docker-CE & Docker-Compose..."
+	echo "Installing Docker-CE & Docker-Compose..." | log
 	install_docker
 	
 	echo "Switching to /opt..."
@@ -256,7 +246,7 @@ main() {
 	lines+=("Generating certificates...")
 	display_all_lines
 	
-	echo "Generating certificates..."
+	echo "Generating certificates..." | log
 	generate_certs
 	
 	echo "Restarting docker..."
@@ -266,29 +256,32 @@ main() {
 	lines+=("Downloading Harbor 2.11.1...")
 	display_all_lines
 	
-	echo "Downloading Harbor 2.11.1..."
+	echo "Downloading Harbor 2.11.1..." | log
 	install_harbor
 	
 	mark_previous_done
 	lines+=("Configuring Harbor 2.11.1...")
 	display_all_lines
 	
-	echo "Configuring Harbor 2.11.1..."
+	echo "Configuring Harbor 2.11.1..." | log
 	configure_harbor
 	
 	mark_previous_done
 	lines+=("Preparing Harbor 2.11.1...")
 	display_all_lines
 	
-	echo "Preparing Harbor 2.11.1..."
+	"$update_status" "$HTML_PATH" -ur "You will be re-directed when the installation is complete. if not, please refresh the page every few seconds."
+	"$update_status" "$HTML_PATH" -sr
+	
+	echo "Preparing Harbor 2.11.1..." | log
 	prepare_harbor
 	
 	mark_previous_done
-	lines+=("Finalizing Harbor 2.11.1...")
+	lines+=("Finalizing Harbor 2.11.1 installation...")
 	display_all_lines
 	
-	echo "Finalizing Harbor 2.11.1..."
-	install_harbor_final
+	echo "Finalizing Harbor 2.11.1 installation..." | log
+	finalize_harbor_installation
 	
 	echo "Install script completed successfully!"
 	
