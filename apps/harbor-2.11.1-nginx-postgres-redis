@@ -280,6 +280,9 @@ main() {
 	lines+=("Finalizing Harbor 2.11.1 installation...")
 	display_all_lines
 	
+	"$update_status" "$HTML_PATH" -ur "You will be re-directed when the installation is complete. if not, please refresh the page every few seconds."
+	"$update_status" "$HTML_PATH" -sr
+	
 	echo "Finalizing Harbor 2.11.1 installation..." | log
 	finalize_harbor_installation
 	
